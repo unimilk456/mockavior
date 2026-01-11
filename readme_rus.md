@@ -1,0 +1,605 @@
+# Mockavior — Contract-driven Mock Platform
+
+Mockavior — это **контрактно-ориентированная платформа мокирования HTTP API**, предназначенная для:
+
+* локальной и dev-среды  
+* интеграционного тестирования  
+* эмуляции нестабильных / внешних сервисов 
+* эмуляции кафки и polling
+* controlled proxy (passthrough)
+
+Платформа управляется **одним YAML-контрактом (`mockapi.yml`)**, поддерживает **горячую перезагрузку**, **условную маршрутизацию**,  **fallback-поведение**, **эмуляцию кафки** и ***поллинг сообщений**.
+
+## 🧠 Основная идея
+
+**Контракт — это единственный источник истины**
+
+Mockavior:
+
+* не хранит состояния запросов  
+* не содержит бизнес-логики  
+* не знает про конкретные API
+
+Он **исполняет контракт**.
+
+## 🧩 Архитектура для эмуляции REST контрактов(коротко)
+
+HTTP request
+
+   ↓
+
+HttpTransportAdapter
+
+   ↓
+
+GenericRequest
+
+   ↓
+
+BehaviorEngine
+
+   ↓
+
+Router → Match → Behavior
+
+   ↓
+
+BehaviorResult
+
+   ↓
+
+HTTP response
+
+Ключевые принципы:
+
+* **Immutable ContractSnapshot**  
+* **Atomic swap snapshot**  
+* **In-flight requests не ломаются**  
+* **Reload \= операция, а не side-effect**
+
+## 🚀 Быстрый старт
+
+### 1️⃣ Запуск сервиса
+
+#### Вариант A — локально (без Docker)
+
+`java -jar mockavior.jar \`  
+  `--mockavior.contract.path=/path/to/mockapi.yml`
+
+#### Вариант B — Docker
+
+`docker pull unisoft123/mockavior:latest`
+
+`docker run -p 8080:8080 -v /path/to/mockapi.yml:/app/config/mockapi.yml unisoft123/mockavior`
+
+Mockavior requires a contract file at startup.
+The container will not start without a mounted contract.
+
+## 📄 Контракт mockapi.yml
+
+### Минимальный пример
+
+```
+version: 1  
+settings:  
+  mode: STRICT  
+  defaultStatus: 404
+
+endpoints: 
+  - id: health 
+    request:  
+      method: GET  
+      path: /health  
+    response:  
+      type: mock  
+      status: 200  
+      body: "OK"
+```
+
+## 🔀 Routing
+
+### Поддерживается
+* `literal paths`  
+   `/health`
+* `parameterized paths`  
+   `/users/{id}`  
+* `приоритеты (priority)`  
+* `условия (when)`
+
+### Пример с параметрами
+
+```
+- id: get-user  
+  priority: 10  
+  request:  
+    method: GET  
+    path: /users/{id}  
+  response:  
+    type: mock  
+    status: 200  
+    body:  
+      id: "{id}"
+```
+
+Запрос:  
+`GET /users/123`
+
+Ответ:  
+`{`  
+  `"id": "123"`  
+`}`
+
+## 🧠 Условия (when)
+
+### Query-параметры
+
+```
+when: 
+  query:  
+    active: true
+```
+
+`GET /users/123?active=true`
+
+### Headers
+
+```when:  
+  headers:  
+    X-Role: admin  
+    X-Debug: "*"
+```
+
+\* → параметр должен присутствовать  
+заголовки case-insensitive
+
+### Приоритет при конфликте
+
+Если несколько маршрутов совпадают:
+
+* выше priority  
+* when должен выполниться  
+* первый совпавший — выигрывает
+
+## 🎭 Типы response
+
+### 1️⃣ mock
+
+```
+response:  
+  type: mock  
+  status: 200  
+  headers:  
+    X-User-Id: "{id}"  
+  body:  
+    id: "{id}"
+```
+Поддерживается template replacement:
+
+* path params  
+* query params  
+* headers (в body / headers)
+
+### 2️⃣ error
+
+```
+response:  
+  type: error  
+  status: 500
+```
+
+Используется для:
+
+* forced failures  
+* chaos testing  
+* negative scenarios
+
+### 3️⃣ proxy
+
+```
+response: 
+  type: proxy
+```
+
+## 🔁 Fallback behavior
+
+Fallback применяется только если ни один endpoint не совпал.
+
+### STRICT (default)
+
+```
+settings:  
+  mode: STRICT  
+  defaultStatus: 404
+```
+
+### PASSTHROUGH
+
+```
+settings:  
+  mode: PASSTHROUGH  
+  proxy:  
+    baseUrl: http://httpbin.org
+```
+
+`GET /status/418 → forwarded to httpbin.org/status/418`
+
+## 🔄 Reload контракта
+
+### Автоматически
+
+* при изменении mockapi.yml  
+* через WatchService  
+* без остановки сервиса
+
+### Вручную
+
+`POST /__mockavior__/reload`
+
+Ответ:  
+```
+{  
+  "status": "SUCCESS",  
+  "source": "/path/to/mockapi.yml",  
+  "snapshotVersion": 12  
+}
+```
+
+## 🛠 Admin API
+
+### Получить текущий контракт
+
+`GET /__mockavior__/contract`
+
+Headers:
+
+* Mockavior-Contract-Version: 12  
+* Content-Type: application/yaml
+
+Body:  
+`version: 1`  
+`…`
+
+### Обновить контракт (PUT)
+
+`PUT /__mockavior__/contract`  
+`If-Match: 12`  
+`Content-Type: text/plain`
+
+Body:  
+`<содержимое файла mockapi.yml>`
+
+Возможные ответы  
+Status	Meaning  
+200	OK  
+409	Version conflict  
+400	Validation error
+
+### Optimistic Locking
+
+* Full replace  
+* защита от перезаписи изменений  
+* версия берётся из Mockavior-Contract-Version
+
+### Проверка контракта (validate)
+
+`POST /__mockavior__/contract/validate`  
+`Content-Type: text/plain`
+
+Ответ:  
+```
+{  
+  "status": "VALID",  
+  "message": "Contract validation successful"  
+}
+```  
+или  
+```
+{  
+  "code": "VALIDATION_ERROR",  
+  "message": "Unknown response.type: foo"  
+}
+```
+
+❌ ErrorResponse (единый формат)
+
+```
+{  
+  "code": "VERSION_CONFLICT",  
+  "message": "Contract version mismatch",  
+  "currentVersion": "13"  
+}
+```
+
+
+# Mockavior — Kafka Emulation & Polling
+
+## 📌 Назначение
+
+Kafka-эмуляция в Mockavior предназначена **не для замены Kafka**, а для:
+
+- детерминированных интеграционных тестов
+- воспроизводимых сценариев
+- проверки реакций consumer‑ов
+- контрактного тестирования event‑driven систем
+
+Это **event store + scheduler**, управляемый контрактом.
+
+---
+
+## 🧠 Ключевая идея
+
+> Kafka — это side‑effect контракта
+
+HTTP → Kafka в Mockavior **не связаны напрямую**.  
+Kafka-сценарии описываются в контракте и исполняются асинхронно.
+
+---
+
+## 🧩 Архитектура Kafka-эмуляции
+
+```
+ContractSnapshot
+   └── kafka.scenarios
+         └── KafkaScenario
+               └── KafkaMessage (topic, key, value, delay, repeat)
+                        ↓
+               ScenarioExecutionRunner (async)
+                        ↓
+               InMemoryKafkaStore
+                        ↓
+               KafkaPollController
+```
+
+### Основные компоненты
+
+- `KafkaScenario` — описание сценария
+- `ScenarioExecutionRunner` — асинхронный исполнитель
+- `RuntimeScheduler` — управляет задержками
+- `InMemoryKafkaStore` — потокобезопасное хранилище
+- `KafkaPollController` — HTTP polling API
+
+---
+
+## 📄 Контракт: kafka section
+
+### Пример
+
+```yaml
+kafka:
+  scenarios:
+    user-events:
+      repeat: 1
+      messages:
+        - topic: user.created
+          key: user-1
+          value:
+            id: 1
+            name: John
+          delay: 0
+
+        - topic: user.updated
+          key: user-1
+          value:
+            name: John Updated
+          delay: 1000
+```
+
+### Семантика
+
+| Поле | Значение |
+|-----|---------|
+| topic | Kafka topic |
+| key | message key |
+| value | payload (JSON) |
+| delay | задержка перед publish (ms) |
+| repeat | сколько раз отправить сообщение |
+
+---
+
+## ▶️ Запуск сценария
+
+```
+POST /__mockavior__/kafka/start/{scenarioId}
+```
+
+Ответ:
+
+```json
+{
+  "executionId": "uuid",
+  "scenarioId": "user-events",
+  "state": "RUNNING"
+}
+```
+
+📌 Сценарий:
+
+- исполняется **асинхронно**
+- не блокирует HTTP
+- может публиковать сообщения с delay
+
+---
+
+## ⏹ Остановка сценария
+
+```
+POST /__mockavior__/kafka/stop/{executionId}
+```
+
+Используется для:
+
+- cleanup
+- аварийного завершения
+- тестовых сценариев
+
+---
+
+## 📬 Polling API (основное)
+
+### Peek (неразрушающий)
+
+```
+GET /__mockavior__/kafka/poll/{topic}
+```
+
+Ответ:
+
+```json
+{
+  "topic": "user.created",
+  "count": 1,
+  "messages": [
+    {
+      "topic": "user.created",
+      "key": "user-1",
+      "value": { "id": 1 },
+      "repeat": 1,
+      "delay": "PT0S"
+    }
+  ]
+}
+```
+
+📌 Сообщения **не удаляются**.
+
+---
+
+### Take (разрушающий)
+
+```
+POST /__mockavior__/kafka/poll/{topic}/take
+```
+
+Ответ:
+
+```json
+{
+  "topic": "user.created",
+  "key": "user-1",
+  "value": { "id": 1 },
+  "repeat": 1,
+  "delay": "PT0S"
+}
+```
+
+- сообщение **удаляется**
+- FIFO
+- если сообщений нет → `204 No Content`
+
+---
+
+### Clear topic
+
+```
+POST /__mockavior__/kafka/poll/{topic}/clear
+```
+
+Ответ:
+
+```json
+{ "cleared": true }
+```
+
+---
+
+## 🔁 Асинхронность
+
+- все Kafka‑сообщения публикуются через `RuntimeScheduler`
+- используется delay из контракта
+- сценарии могут работать параллельно
+- store потокобезопасный (`ConcurrentHashMap + Queue`)
+
+---
+
+## 🧪 Интеграционные тесты
+
+Типовой сценарий:
+
+1. загрузить контракт
+2. `POST /kafka/start/{scenario}`
+3. `sleep()` (или polling loop)
+4. `POST /poll/{topic}/take`
+5. assert payload
+6. `GET /poll/{topic}` → count == 0
+
+Пример:
+
+```java
+Map<String, Object> msg =
+  client.post()
+        .uri("/__mockavior__/kafka/poll/user.created/take")
+        .retrieve()
+        .bodyToMono(Map.class)
+        .block();
+
+assertThat(msg.get("key")).isEqualTo("user-1");
+```
+
+---
+
+## 🧱 Гарантии
+
+✔ deterministic order per topic  
+✔ no shared state outside store  
+✔ no real Kafka dependency  
+✔ reproducible tests  
+✔ snapshot‑safe (reload не ломает runner)
+
+---
+
+## ❌ Осознанные ограничения
+
+- нет partitions
+- нет consumer groups
+- нет offset management
+- нет retention
+- нет exactly-once
+
+> Это **test double**, а не broker.
+
+---
+
+## 🧭 Когда использовать
+
+✔ contract testing  
+✔ async workflows  
+✔ saga testing  
+✔ consumer simulation  
+✔ CI pipelines
+
+❌ performance testing  
+❌ real Kafka behavior validation
+
+---
+
+## 🧠 Философия
+
+> Kafka — это не инфраструктура, а контракт событий.
+
+Mockavior делает события **частью API‑контракта**.
+
+
+
+
+### 🧱 Границы текущего MVP
+
+✅ Уже реализовано:
+
+* HTTP mock  
+* proxy  
+* error responses  
+* conditional routing  
+* hot reload  
+* optimistic locking  
+* immutable snapshots  
+* admin API
+
+❌ Пока нет (осознанно):
+
+* partial merge контракта  
+* UI  
+* auth / RBAC  
+* rate limiting  
+* metrics / tracing  
+* OpenAPI export
+

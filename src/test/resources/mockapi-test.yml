@@ -1,0 +1,16 @@
+settings:
+  mode: PASSTHROUGH
+  proxy:
+    baseUrl: https://httpbin.org
+
+endpoints:
+  - id: health-check
+    priority: 10
+    request:
+      protocol: http
+      method: GET
+      path: /health
+    response:
+      type: mock
+      status: 200
+      body: "OK!"

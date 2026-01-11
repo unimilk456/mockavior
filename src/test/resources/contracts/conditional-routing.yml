@@ -1,0 +1,75 @@
+version: 1
+
+settings:
+  mode: strict
+  defaultStatus: 404
+
+endpoints:
+  - id: create-user
+    request:
+      protocol: http
+      method: POST
+      path: /users
+    response:
+      type: mock
+      status: 201
+      headers:
+        Content-Type: application/json
+      body: |
+        {
+          "id": 123,
+          "status": "created"
+        }
+
+  - id: health-check
+    priority: 10
+    request:
+      protocol: http
+      method: GET
+      path: /health
+    response:
+      type: mock
+      status: 200
+      body: "OK!"
+
+  - id: unstable
+    request:
+      method: GET
+      path: /unstable
+    response:
+      type: error
+      status: 500
+
+  - id: active-users
+    priority: 20
+    request:
+      protocol: http
+      method: GET
+      path: /users
+    when:
+      query:
+        active: "true"
+    response:
+      type: mock
+      status: 200
+      body: |
+        {
+          "message": "active users"
+        }
+
+  - id: admin-users
+    priority: 10
+    request:
+      protocol: http
+      method: GET
+      path: /users
+    when:
+      headers:
+        x-role: admin
+    response:
+      type: mock
+      status: 200
+      body: |
+        {
+          "message": "admin users"
+        }

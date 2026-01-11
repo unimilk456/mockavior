@@ -1,0 +1,15 @@
+settings:
+  mode: STRICT
+  defaultStatus: 404
+
+endpoints:
+  - id: health-check
+    priority: 10
+    request:
+      protocol: http
+      method: GET
+      path: /health
+    response:
+      type: mock
+      status: 200
+      body: "OK!"

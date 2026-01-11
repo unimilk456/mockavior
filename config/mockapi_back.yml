@@ -1,0 +1,213 @@
+
+version: 1
+
+meta:
+  name: "Mockavior Demo"
+  owner: "local-dev"
+  tags:
+    - demo
+    - mvp
+    - mock
+
+settings:
+  mode: STRICT
+  defaultStatus: 404
+  proxy:
+    baseUrl: "http://localhost:8080"
+
+#settings:
+#  mode: PASSTHROUGH
+#  proxy:
+#    baseUrl: http://httpbin.org
+
+endpoints:
+#  - id: user-always-error
+#    priority: 100
+#
+#    request:
+#      method: GET
+#      path: /users/{id}
+#
+#    response:
+#      type: error
+#      status: 501
+#
+#  - id: user-when-error
+#    priority: 200
+#
+#    request:
+#      method: GET
+#      path: /users/{id}
+#
+#    when:
+#      headers:
+#        X-Force-Error: "true"
+#
+#    response:
+#      type: error
+#      status: 502
+
+
+  - id: get-user-when-in-header-X-Role-admin-and-X-Debug-have-any-value
+    priority: 10
+
+    request:
+      protocol: http
+      method: GET
+      path: /users/{id}
+
+    when:
+      headers:
+        X-Role: admin
+        X-Debug: "*"
+
+    response:
+      type: mock
+      status: 200
+
+      body:
+        id: "{id}"
+        Role: "Is admin"
+
+
+#        message: "User {id} have role={role}"
+###################################################
+  - id: get-user-active
+    priority: 10
+
+    request:
+      protocol: http
+      method: GET
+      path: /users/{id}
+
+    when:
+      query:
+        active: false
+
+    response:
+      type: mock
+      status: 200
+
+      headers:
+        Content-Type: application/json
+        X-User-Id: "{id}"
+        X-User-Active: "{active}"
+        Location: "/users/{id}"
+      body:
+        id: "{id}"
+        active: "{active}"
+        message: "User {id} active={active}"
+
+
+  - id: get-user
+    priority: 5
+    request:
+      method: GET
+      path: /users/{id}
+    response:
+      type: mock
+      status: 200
+      headers:
+        X-User-Id: "{id}"
+        Location: "/users/{id}"
+      body:
+        id: "{id}"
+
+  - id: get-smsthg
+    request:
+      method: GET
+      path: /smth/{id}
+    response:
+      type: mock
+      status: 200
+      body:
+        user:
+          id: "{id}"
+          roles:
+            - "admin"
+            - "user-{id}"
+
+  - id: health-check
+    priority: 10
+    request:
+      protocol: http
+      method: GET
+      path: /health
+    response:
+      type: mock
+      status: 200
+      body: "OK!"
+
+  - id: create-user
+    request:
+      protocol: http
+      method: POST
+      path: /users
+    response:
+      type: mock
+      status: 201
+      headers:
+        Content-Type: application/json
+      body: |
+        {
+          "id": 123,
+          "status": "created"
+        }
+
+  - id: proxy-catalog
+    request:
+      protocol: http
+      method: GET
+      path: /catalog/{itemId}
+    response:
+      type: proxy
+
+  - id: force-error
+    request:
+      protocol: http
+      method: GET
+      path: /erro
+    response:
+      type: error
+      status: 502
+
+# =========================
+# Kafka emulation section
+# =========================
+kafka:
+  scenarios:
+    - id: user-events
+      repeat: 3              # повтор всего сценария (по умолчанию = 1)
+      delay: 1000             # задержка между итерациями сценария (мс, по умолчанию = 0)
+
+      messages:
+        - topic: user.created
+          key: "user-1"
+          value:
+            id: 1
+            name: Alice
+          delay: 500          # задержка перед этим сообщением (мс)
+          repeat: 1           # повтор конкретного сообщения (по умолчанию = 1)
+
+        - topic: user.updated
+          key: "user-1"
+          value:
+            id: 1
+            name: Alice Smith
+          delay: 1000
+          repeat: 2
+
+    - id: audit-events
+      repeat: 1
+      messages:
+        - topic: audit.login
+          key: "session-42"
+          value:
+            userId: 42
+            action: LOGIN
+
+        - topic: audit.logout
+          key: "session-42"
+          value:
+            userId: 42
+            action: LOGOUT

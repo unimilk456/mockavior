@@ -1,0 +1,22 @@
+version: 1
+
+kafka:
+  scenarios:
+    - id: user-events
+      repeat: 1
+      messages:
+        - topic: user.created
+          key: "user-1"
+          value:
+            id: 1
+            name: Alice
+          repeat: 1
+
+        - topic: user.updated
+          key: "user-1"
+          value:
+            id: 1
+            name: Alice Smith
+          repeat: 2
+
+endpoints: []

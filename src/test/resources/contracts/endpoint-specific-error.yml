@@ -1,0 +1,39 @@
+settings:
+  mode: STRICT
+  defaultStatus: 404
+
+endpoints:
+  - id: create-user
+    request:
+      protocol: http
+      method: POST
+      path: /users
+    response:
+      type: mock
+      status: 201
+      headers:
+        Content-Type: application/json
+      body: |
+        {
+          "id": 123,
+          "status": "created"
+        }
+
+  - id: health-check
+    priority: 10
+    request:
+      protocol: http
+      method: GET
+      path: /health
+    response:
+      type: mock
+      status: 200
+      body: "OK!"
+
+  - id: unstable
+    request:
+      method: GET
+      path: /unstable
+    response:
+      type: error
+      status: 500
