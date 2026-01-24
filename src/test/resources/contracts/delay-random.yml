@@ -1,0 +1,19 @@
+version: 1
+
+settings:
+  mode: strict
+  defaultStatus: 404
+
+endpoints:
+  - id: slow
+    request:
+      method: GET
+      path: /slow
+    response:
+      type: mock
+      status: 200
+      delay:
+        random:
+          min: 200
+          max: 600
+      body: SLOW

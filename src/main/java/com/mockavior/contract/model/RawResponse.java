@@ -1,5 +1,8 @@
 package com.mockavior.contract.model;
 
+import com.mockavior.behavior.delay.DelaySpec;
+import com.mockavior.behavior.delay.RandomDelay;
+
 import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
@@ -9,7 +12,7 @@ public record RawResponse(
         int status,
         Map<String, Object> headers,
         Object body,
-        Duration delay
+        DelaySpec delay
 ) {
 
     public RawResponse {
@@ -25,7 +28,9 @@ public record RawResponse(
 
         type = type.toLowerCase();
         headers = headers == null ? Map.of() : Map.copyOf(headers);
-        delay = delay == null ? Duration.ZERO : delay;
+        delay = delay == null
+                ? new DelaySpec(Duration.ZERO, null)
+                : delay;
     }
 
     @SuppressWarnings("unchecked")
@@ -36,7 +41,7 @@ public record RawResponse(
 
         int status = parseStatus(data.getOrDefault("status", 200));
 
-        Duration delay = parseDelay(data.get("delay"));
+        DelaySpec delay = parseDelay(data.get("delay"));
 
         Object body = data.get("body");
 
@@ -61,19 +66,57 @@ public record RawResponse(
         );
     }
 
-    private static Duration parseDelay(Object value) {
+    private static DelaySpec parseDelay(Object value) {
         if (value == null) {
-            return Duration.ZERO;
+            return null;
         }
-        if (value instanceof Number n) {
-            return Duration.ofMillis(n.longValue());
+        if (value instanceof Number number) {
+            return new DelaySpec(Duration.ofMillis(number.longValue()), null);
         }
-        if (value instanceof String s) {
-            return Duration.parse("PT" + s.toUpperCase());
+        if (value instanceof String str) {
+            return new DelaySpec(Duration.parse("PT" + str.toUpperCase()), null);
         }
+
+        // new format:
+        // delay:
+        //   fixed: 200ms
+        //   random:
+        //     min: 50ms
+        //     max: 300ms
+
+        if (value instanceof Map<?, ?> map) {
+            Duration fixed = null;
+            RandomDelay random = null;
+
+            Object fixedRaw = map.get("fixed");
+            if (fixedRaw != null) {
+                fixed = parseDuration(fixedRaw);
+            }
+
+            Object randomRaw = map.get("random");
+            if (randomRaw instanceof Map<?, ?> rnd) {
+                Duration min = parseDuration(rnd.get("min"));
+                Duration max = parseDuration(rnd.get("max"));
+                random = new RandomDelay(min, max);
+            }
+
+            return new DelaySpec(fixed, random);
+        }
+
         throw new IllegalArgumentException(
-                "response.delay must be number (ms) or ISO-8601 duration, got: " + value
+                "response.delay must be number, string duration or delay object, got: " + value
         );
     }
+
+    private static Duration parseDuration(Object raw) {
+        if (raw instanceof Number number) {
+            return Duration.ofMillis(number.longValue());
+        }
+        if (raw instanceof String str) {
+            return Duration.parse("PT" + str.toUpperCase());
+        }
+        throw new IllegalArgumentException("Unsupported duration value: " + raw);
+    }
+
 }
 

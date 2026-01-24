@@ -1,5 +1,6 @@
 package com.mockavior.core.snapshot;
 
+import com.mockavior.behavior.delay.DelaySpec;
 import com.mockavior.contract.model.Mode;
 import com.mockavior.routing.Router;
 import com.mockavior.kafka.model.KafkaScenario;
@@ -20,7 +21,7 @@ public final class ContractSnapshot {
     private final Instant createdAt;
     private final Router router;
     private final ContractSnapshot.Settings settings;
-    private final Map<String, Duration> routeDelays;
+    private final Map<String, DelaySpec> routeDelays;
     private final Map<String, KafkaScenario> kafkaScenarios;
 
 
@@ -29,7 +30,7 @@ public final class ContractSnapshot {
             Instant createdAt,
             Router router,
             ContractSnapshot.Settings settings,
-            Map<String, Duration> routeDelays,
+            Map<String, DelaySpec> routeDelays,
             Map<String, KafkaScenario> kafkaScenarios
     ) {
         this.version = Objects.requireNonNull(version, "version must not be null");
@@ -47,7 +48,12 @@ public final class ContractSnapshot {
         if (routeId == null) {
             return Duration.ZERO;
         }
-        return routeDelays.getOrDefault(routeId, Duration.ZERO);
+
+        DelaySpec spec = routeDelays.get(routeId);
+        if (spec == null) {
+            return Duration.ZERO;
+        }
+        return spec.resolve();
     }
 
     public SnapshotVersion version() {

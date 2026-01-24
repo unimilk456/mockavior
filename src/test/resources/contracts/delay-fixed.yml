@@ -12,15 +12,14 @@ endpoints:
     response:
       type: mock
       status: 200
-      body: "SLOW"
-      delay: 1500
+      delay: 1000
+      body: SLOW
 
   - id: fast
-    priority: 10
     request:
       method: GET
       path: /fast
     response:
       type: mock
       status: 200
-      body: "FAST"
+      body: FAST

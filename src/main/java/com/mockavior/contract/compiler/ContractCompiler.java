@@ -4,6 +4,7 @@ import com.mockavior.behavior.Behavior;
 import com.mockavior.behavior.ErrorBehavior;
 import com.mockavior.behavior.MockBehavior;
 import com.mockavior.behavior.ProxyBehavior;
+import com.mockavior.behavior.delay.DelaySpec;
 import com.mockavior.contract.model.CompiledContract;
 import com.mockavior.contract.model.Mode;
 import com.mockavior.contract.model.RawContract;
@@ -19,14 +20,12 @@ import com.mockavior.routing.DefaultRouter;
 import com.mockavior.routing.Route;
 import com.mockavior.routing.Router;
 import com.mockavior.routing.when.WhenCondition;
-import com.mockavior.runtime.proxy.ProxyConfig;
 import com.mockavior.transport.http.HttpMethod;
 import com.mockavior.transport.http.HttpRouteMatcher;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URI;
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -51,7 +50,7 @@ public final class ContractCompiler {
         log.info("Starting contract compilation");
         try {
             List<Route> routes = new ArrayList<>();
-            Map<String, Duration> routeDelays = new HashMap<>();
+            Map<String, DelaySpec> routeDelays = new HashMap<>();
 
             for (RawEndpoint e : raw.endpoints()) {
                 RawRequest r = e.request();
@@ -69,6 +68,8 @@ public final class ContractCompiler {
 
                 WhenCondition whenCondition =
                         WhenCondition.fromRaw(e.when());
+
+
 
                 log.debug(
                         "Compiled endpoint: id={}, method={}, path={}, priority={}, behavior={}, when={}",
@@ -91,10 +92,7 @@ public final class ContractCompiler {
                 );
 
                 if (e.id() != null) {
-                    routeDelays.put(
-                            e.id(),
-                            resp.delay() != null ? resp.delay() : Duration.ZERO
-                    );
+                    routeDelays.put(e.id(), resp.delay());
                 }
             }
 
