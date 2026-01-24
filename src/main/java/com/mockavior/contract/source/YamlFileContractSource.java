@@ -10,13 +10,10 @@ import java.nio.file.StandardCopyOption;
 import java.util.Objects;
 
 @Slf4j
-public final class YamlFileContractSource implements ContractSource {
+public record YamlFileContractSource(Path path) implements ContractSource {
 
-    private final Path path;
-
-    public YamlFileContractSource(Path path) {
-
-        this.path = Objects.requireNonNull(path, "path must not be null");
+    public YamlFileContractSource {
+        Objects.requireNonNull(path, "path must not be null");
     }
 
     @Override
@@ -51,17 +48,18 @@ public final class YamlFileContractSource implements ContractSource {
 
         try {
             Path parent = path.getParent();
+            Path tempDir = (parent != null) ? parent : Path.of(".");
+
             if (parent != null) {
                 Files.createDirectories(parent);
             }
 
             // write atomically
-            Path tempFile =
-                    Files.createTempFile(
-                            parent,
-                            path.getFileName().toString(),
-                            ".tmp"
-                    );
+            Path tempFile = Files.createTempFile(
+                    tempDir,
+                    path.getFileName().toString(),
+                    ".tmp"
+            );
 
             Files.writeString(tempFile, raw, StandardCharsets.UTF_8);
 
@@ -80,8 +78,7 @@ public final class YamlFileContractSource implements ContractSource {
         }
     }
 
-    public Path path() {
-
-        return path;
+    public Path workspaceRoot() {
+        return path.getParent();
     }
 }

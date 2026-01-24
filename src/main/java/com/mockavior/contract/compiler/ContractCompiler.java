@@ -1,5 +1,6 @@
 package com.mockavior.contract.compiler;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mockavior.behavior.Behavior;
 import com.mockavior.behavior.ErrorBehavior;
 import com.mockavior.behavior.MockBehavior;
@@ -12,6 +13,8 @@ import com.mockavior.contract.model.RawEndpoint;
 import com.mockavior.contract.model.RawRequest;
 import com.mockavior.contract.model.RawResponse;
 import com.mockavior.contract.model.Settings;
+import com.mockavior.contract.payload.BodyResolver;
+import com.mockavior.contract.payload.ResolvedBody;
 import com.mockavior.core.snapshot.ContractSnapshot;
 import com.mockavior.core.snapshot.SnapshotVersion;
 import com.mockavior.kafka.compiler.KafkaScenarioCompiler;
@@ -25,6 +28,7 @@ import com.mockavior.transport.http.HttpRouteMatcher;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.URI;
+import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -38,10 +42,16 @@ public final class ContractCompiler {
 
     private final Clock clock;
     private final KafkaScenarioCompiler kafkaScenarioCompiler;
+    private final BodyResolver bodyResolver;
 
-    public ContractCompiler(Clock clock, KafkaScenarioCompiler kafkaScenarioCompiler) {
+    public ContractCompiler(Clock clock, KafkaScenarioCompiler kafkaScenarioCompiler,  ObjectMapper objectMapper,
+                            Path workspaceRoot) {
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
         this.kafkaScenarioCompiler = kafkaScenarioCompiler;
+        this.bodyResolver = new BodyResolver(
+                Objects.requireNonNull(objectMapper, "objectMapper must not be null"),
+                Objects.requireNonNull(workspaceRoot, "workspaceRoot must not be null")
+        );
     }
 
     public CompiledContract compile(RawContract raw) {
@@ -68,8 +78,6 @@ public final class ContractCompiler {
 
                 WhenCondition whenCondition =
                         WhenCondition.fromRaw(e.when());
-
-
 
                 log.debug(
                         "Compiled endpoint: id={}, method={}, path={}, priority={}, behavior={}, when={}",
@@ -150,8 +158,12 @@ public final class ContractCompiler {
             RawResponse r
     ) {
         return switch (r.type().toLowerCase()) {
-            case "mock" ->
-                    new MockBehavior(r.body(), r.status(), r.headers());
+            case "mock" -> {
+                ResolvedBody resolvedBody = bodyResolver.resolve(r.body(), r.bodyFile());
+                Object bodyForBehavior = resolvedBody.asString();
+
+                yield new MockBehavior(bodyForBehavior, r.status(), r.headers());
+            }
             case "proxy" ->
                     new ProxyBehavior();
             case "error" ->

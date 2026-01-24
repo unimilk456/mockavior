@@ -28,8 +28,18 @@ public final class ContractFileWatcher {
 
     @PostConstruct
     public void start() {
+        Path workspaceRoot = source.path().toAbsolutePath().getParent();
+
+        if (workspaceRoot == null) {
+            log.warn(
+                    "Cannot start ContractFileWatcher: contract file has no parent directory: {}",
+                    source.path()
+            );
+            return;
+        }
+
         log.info("Starting contract file watcher for {}", source.path());
-        thread = new Thread(this::run, "mockavior-contract-watcher");
+        thread = new Thread(() -> run(workspaceRoot), "mockavior-contract-watcher");
         thread.setDaemon(true);
         thread.start();
     }
@@ -43,63 +53,146 @@ public final class ContractFileWatcher {
         }
     }
 
-    private void run() {
-        Path file = source.path().toAbsolutePath();
-        Path dir = file.getParent();
-        if (dir == null) {
-            log.warn("Cannot start file watcher: parent directory is null for {}", file);
+    private void run(Path workspaceRoot) {
+        if (workspaceRoot == null) {
+            log.warn("Cannot start to watch: directory is null");
             return;
         }
 
-        log.info("Watching directory {} for changes to {}", dir, file.getFileName());
-
         try (WatchService watchService = FileSystems.getDefault().newWatchService()) {
-            dir.register(watchService, ENTRY_CREATE, ENTRY_MODIFY, ENTRY_DELETE);
 
-            while (running) {
-                WatchKey key;
-                try{
-                    key = watchService.take();
-                }
-                catch (InterruptedException e){
-                    log.debug("Contract file watcher interrupted");
-                    Thread.currentThread().interrupt();
-                    break;
-                }
+            registerRecursively(workspaceRoot, watchService);
+            log.info("Watching contract workspace recursively: {}", workspaceRoot);
 
-                for (WatchEvent<?> event : key.pollEvents()) {
-                    WatchEvent.Kind<?> kind = event.kind();
-                    Object ctx = event.context();
+            boolean shouldStop = false;
 
-                    if (ctx instanceof Path changed) {
-                        if (changed.getFileName().toString().equals(file.getFileName().toString())) {
+            while (running && !shouldStop) {
 
-                            log.info(
-                                    "Contract file change detected: event={}, file={}",
-                                    kind.name(),
-                                    changed
-                            );
-
-                            log.debug("Triggering contract reload due to {}", kind);
-
-                            // Debounce could be added later; MVP: reload on each change
-                            reloadService.reload();
-                        }
-                    }
+                WatchKey key = takeWatchKey(watchService);
+                if (key == null) {
+                    shouldStop = true;
+                    continue;
                 }
 
-                boolean valid = key.reset();
-                if (!valid) {
-                    log.warn("WatchKey is no longer valid, stopping watcher");
-                    break;
+                boolean reloadRequested = processWatchKey(key, watchService);
+
+                if (!resetWatchKey(key, workspaceRoot)) {
+                    shouldStop = true;
+                }
+
+                if (reloadRequested && !shouldStop) {
+                    reloadService.reload();
                 }
             }
-        } catch (IOException e) {
-            log.error("Failed to initialize contract file watcher", e);
-        } catch (Exception e) {
-            log.error("Unexpected error in contract file watcher", e);
+
+        } catch (IOException ex) {
+            log.error("Failed to initialize contract workspace watcher", ex);
+        } catch (Exception ex) {
+            log.error("Unexpected error in contract workspace watcher", ex);
         } finally {
-            log.info("Contract file watcher stopped");
+            log.info("Contract workspace watcher stopped");
         }
     }
+
+    private boolean processWatchKey(
+            WatchKey key,
+            WatchService watchService
+    ) {
+        Path dir = (Path) key.watchable();
+        boolean reloadRequested = false;
+
+        for (WatchEvent<?> event : key.pollEvents()) {
+            if (processWatchEvent(event, dir, watchService)) {
+                reloadRequested = true;
+            }
+        }
+
+        return reloadRequested;
+    }
+
+    private boolean processWatchEvent(
+            WatchEvent<?> event,
+            Path dir,
+            WatchService watchService
+    ) {
+        WatchEvent.Kind<?> kind = event.kind();
+
+        if (kind == OVERFLOW) {
+            return false;
+        }
+
+        Path changed = dir.resolve((Path) event.context());
+
+        log.info("Detected contract workspace change: event={}, path={}", kind.name(), changed);
+
+        if (kind == ENTRY_CREATE) {
+            handleDirectoryCreation(changed, watchService);
+        }
+
+        return true;
+    }
+
+    private boolean resetWatchKey(WatchKey key, Path workspaceRoot) {
+        boolean valid = key.reset();
+        if (valid) {
+            return true;
+        }
+
+        Path dir = (Path) key.watchable();
+
+        if (dir.equals(workspaceRoot)) {
+            log.warn("WatchKey is no longer valid for workspaceRoot {}, stopping watcher", dir);
+            return false;
+        }
+
+        log.warn("WatchKey is no longer valid for {}, continuing watcher", dir);
+        return true;
+    }
+
+    private void registerRecursively(
+            Path root,
+            WatchService watchService
+    ) throws IOException {
+
+        try (var paths = Files.walk(root)) {
+            paths.filter(Files::isDirectory)
+                    .forEach(dir -> registerDirectory(dir, watchService));
+        }
+    }
+
+    private void handleDirectoryCreation(Path changed, WatchService watchService) {
+        try {
+            if (Files.isDirectory(changed)) {
+                registerRecursively(changed, watchService);
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to register newly created directory: {}", changed, ex);
+        }
+    }
+
+    private void registerDirectory(Path dir, WatchService watchService) {
+        try {
+            dir.register(
+                    watchService,
+                    ENTRY_CREATE,
+                    ENTRY_MODIFY,
+                    ENTRY_DELETE
+            );
+            log.debug("Watching directory: {}", dir);
+        } catch (IOException ex) {
+            log.warn("Failed to watch directory: {}", dir, ex);
+        }
+    }
+
+    private WatchKey takeWatchKey(WatchService watchService) {
+        try {
+            return watchService.take();
+        } catch (InterruptedException ex) {
+            log.debug("Contract file watcher interrupted");
+            Thread.currentThread().interrupt();
+            return null;
+        }
+    }
+
+
 }

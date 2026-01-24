@@ -1,0 +1,12 @@
+version: 1
+
+endpoints:
+  - request:
+      method: GET
+      path: /users
+    response:
+      type: mock
+      status: 200
+      body:
+        message: INLINE_BODY
+      bodyFile: bodies/user.json

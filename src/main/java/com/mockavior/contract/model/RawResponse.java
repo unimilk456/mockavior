@@ -12,6 +12,7 @@ public record RawResponse(
         int status,
         Map<String, Object> headers,
         Object body,
+        Object bodyFile,
         DelaySpec delay
 ) {
 
@@ -31,6 +32,12 @@ public record RawResponse(
         delay = delay == null
                 ? new DelaySpec(Duration.ZERO, null)
                 : delay;
+
+        if (bodyFile != null && !(bodyFile instanceof String)) {
+            throw new IllegalArgumentException(
+                    "response.bodyFile must be a string path relative to contract directory"
+            );
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -45,13 +52,15 @@ public record RawResponse(
 
         Object body = data.get("body");
 
+        Object bodyFile = data.get("bodyFile");
+
         Map<String, Object> headers = null;
         Object headersObj = data.get("headers");
         if (headersObj instanceof Map<?, ?>) {
             headers = (Map<String, Object>) headersObj;
         }
 
-        return new RawResponse(type, status, headers, body, delay);
+        return new RawResponse(type, status, headers, body, bodyFile, delay);
     }
 
     private static int parseStatus(Object value) {
@@ -67,45 +76,52 @@ public record RawResponse(
     }
 
     private static DelaySpec parseDelay(Object value) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof Number number) {
-            return new DelaySpec(Duration.ofMillis(number.longValue()), null);
-        }
-        if (value instanceof String str) {
-            return new DelaySpec(Duration.parse("PT" + str.toUpperCase()), null);
-        }
+        return switch (value) {
+            case null -> null;
 
-        // new format:
-        // delay:
-        //   fixed: 200ms
-        //   random:
-        //     min: 50ms
-        //     max: 300ms
+            case Number number ->
+                    new DelaySpec(
+                            Duration.ofMillis(number.longValue()),
+                            null
+                    );
 
-        if (value instanceof Map<?, ?> map) {
-            Duration fixed = null;
-            RandomDelay random = null;
+            case String str ->
+                    new DelaySpec(
+                            Duration.parse("PT" + str.toUpperCase()),
+                            null
+                    );
 
-            Object fixedRaw = map.get("fixed");
-            if (fixedRaw != null) {
-                fixed = parseDuration(fixedRaw);
+            // new format:
+            // delay:
+            //   fixed: 200ms
+            //   random:
+            //     min: 50ms
+            //     max: 300ms
+
+            case Map<?, ?> map -> {
+                Duration fixed = null;
+                RandomDelay random = null;
+
+                Object fixedRaw = map.get("fixed");
+                if (fixedRaw != null) {
+                    fixed = parseDuration(fixedRaw);
+                }
+
+                Object randomRaw = map.get("random");
+                if (randomRaw instanceof Map<?, ?> rnd) {
+                    Duration min = parseDuration(rnd.get("min"));
+                    Duration max = parseDuration(rnd.get("max"));
+                    random = new RandomDelay(min, max);
+                }
+
+                yield new DelaySpec(fixed, random);
             }
 
-            Object randomRaw = map.get("random");
-            if (randomRaw instanceof Map<?, ?> rnd) {
-                Duration min = parseDuration(rnd.get("min"));
-                Duration max = parseDuration(rnd.get("max"));
-                random = new RandomDelay(min, max);
-            }
-
-            return new DelaySpec(fixed, random);
-        }
-
-        throw new IllegalArgumentException(
-                "response.delay must be number, string duration or delay object, got: " + value
-        );
+            default ->
+                    throw new IllegalArgumentException(
+                            "response.delay must be number, string duration or delay object, got: " + value
+                    );
+        };
     }
 
     private static Duration parseDuration(Object raw) {

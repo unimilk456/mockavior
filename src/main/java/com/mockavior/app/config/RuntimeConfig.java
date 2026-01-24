@@ -1,5 +1,6 @@
 package com.mockavior.app.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mockavior.app.admin.service.ContractAdminService;
 import com.mockavior.app.admin.service.ContractValidationService;
 import com.mockavior.contract.compiler.ContractCompiler;
@@ -78,9 +79,20 @@ public class RuntimeConfig {
 
     @Bean
     public ContractCompiler contractCompiler(Clock clock,
-                                             KafkaScenarioCompiler kafkaScenarioCompiler) {
-        log.info("Initializing ContractCompiler");
-        return new ContractCompiler(clock, kafkaScenarioCompiler);
+                                             KafkaScenarioCompiler kafkaScenarioCompiler,
+                                             ObjectMapper objectMapper,
+                                             YamlFileContractSource contractSource) {
+
+        Path workspaceRoot = contractSource.workspaceRoot();
+
+        if (workspaceRoot == null) {
+            throw new IllegalStateException(
+                    "Contract file must be located inside a directory: " + workspaceRoot
+            );
+        }
+
+        log.info("Initializing ContractCompiler with workspaceRoot={}", workspaceRoot);
+        return new ContractCompiler(clock, kafkaScenarioCompiler, objectMapper,  workspaceRoot);
     }
 
     @Bean
