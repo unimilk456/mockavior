@@ -1,0 +1,22 @@
+version: 1
+
+settings:
+  mode: STRICT
+  defaultStatus: 404
+
+endpoints:
+
+  - id: tag-any
+    priority: 10
+    request:
+      method: GET
+      path: /test
+    when:
+      query:
+        tag:
+          any: ["as", "ab"]
+    response:
+      type: mock
+      status: 200
+      body:
+        matched: tag-any

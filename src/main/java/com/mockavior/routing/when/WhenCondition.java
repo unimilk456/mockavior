@@ -12,7 +12,6 @@ import java.util.Objects;
 
 /**
  * Simple conditional matcher for routes.
- *
  * MVP:
  * - supports presence check for query params
  * - example: active: "*"
@@ -68,29 +67,12 @@ public final class WhenCondition {
             return false;
         }
 
-        for (Map.Entry<String, Object> e : requiredQuery.entrySet()) {
-            String key = e.getKey();
-            Object rule = e.getValue();
+        for (Map.Entry<String, Object> entry : requiredQuery.entrySet()) {
+            String key = entry.getKey();
+            Object rule = entry.getValue();
 
-            Object valueObj = query.get(key);
-            if (!(valueObj instanceof List<?> values) || values.isEmpty()) {
-                log.trace("WhenCondition query param missing: {}", key);
-                return false;
-            }
-
-            Object actual = values.get(0);
-
-            if ("*".equals(rule)) {
-                continue;
-            }
-
-            if (!String.valueOf(actual).equalsIgnoreCase(String.valueOf(rule))) {
-                log.trace(
-                        "WhenCondition query param mismatch: {} expected={}, actual={}",
-                        key,
-                        rule,
-                        actual
-                );
+            List<String> values = extractQueryValues(query, key);
+            if (values.isEmpty() || !matchesRule(key, rule, values)) {
                 return false;
             }
         }
@@ -98,7 +80,98 @@ public final class WhenCondition {
         return true;
     }
 
-    @SuppressWarnings("unchecked")
+    private List<String> extractQueryValues(Map<?, ?> query, String key) {
+        Object valueObj = query.get(key);
+
+        if (!(valueObj instanceof List<?> rawValues) || rawValues.isEmpty()) {
+            log.trace("WhenCondition query param missing: {}", key);
+            return List.of();
+        }
+
+        return rawValues.stream()
+                .map(String::valueOf)
+                .toList();
+    }
+
+
+    private boolean matchesRule(String key, Object rule, List<String> values) {
+
+        if ("*".equals(rule)) {
+            return true;
+        }
+
+        if (rule instanceof String expected) {
+            return matchesAny(values, List.of(expected));
+        }
+
+        if (rule instanceof List<?> listRule) {
+            return matchesAny(values, toStringList(listRule));
+        }
+
+        if (rule instanceof Map<?, ?> mapRule) {
+            return matchesAnyAndAll(key, values, mapRule);
+        }
+
+        throw new IllegalArgumentException(
+                "Unsupported when.query rule for key '" + key + "': " + rule
+        );
+    }
+
+    private boolean matchesAnyAndAll(
+            String key,
+            List<String> values,
+            Map<?, ?> rule
+    ) {
+        if (rule.containsKey("any")) {
+            List<String> expectedAny = extractList(rule, "any", key);
+            if (!matchesAny(values, expectedAny)) {
+                return false;
+            }
+        }
+
+        if (rule.containsKey("all")) {
+            List<String> expectedAll = extractList(rule, "all", key);
+            return matchesAll(values, expectedAll);
+        }
+
+        return true;
+    }
+
+    private boolean matchesAny(List<String> values, List<String> expected) {
+        return values.stream()
+                .anyMatch(v ->
+                        expected.stream()
+                                .anyMatch(v::equalsIgnoreCase)
+                );
+    }
+
+    private boolean matchesAll(List<String> values, List<String> expected) {
+        return expected.stream()
+                .allMatch(exp ->
+                        values.stream()
+                                .anyMatch(v -> v.equalsIgnoreCase(exp))
+                );
+    }
+
+    private List<String> extractList(Map<?, ?> rule, String key, String param) {
+        Object obj = rule.get(key);
+
+        if (!(obj instanceof List<?> list)) {
+            throw new IllegalArgumentException(
+                    "when.query." + param + "." + key + " must be a list"
+            );
+        }
+
+        return toStringList(list);
+    }
+
+    private List<String> toStringList(List<?> list) {
+        return list.stream()
+                .map(String::valueOf)
+                .toList();
+    }
+
+
     private boolean matchesHeaders(GenericRequest request) {
         if (requiredHeaders.isEmpty()) {
             return true;

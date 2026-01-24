@@ -192,6 +192,160 @@ when:
 
 `GET /users/123?active=true`
 
+
+### Query matching with repeated parameters
+
+Mockavior supports advanced matching of **repeated query parameters**, such as:
+
+```
+/test?tag=as&tag=ab
+```
+
+This allows expressive routing based on **presence**, **exact values**, and **set-based conditions**.
+
+---
+
+#### Supported DSL constructs
+
+#### 1. Wildcard — parameter presence
+
+```yaml
+tag: "*"
+```
+
+Matches **any request where the `tag` parameter is present**, regardless of its value.
+
+| Request          | Match |
+|------------------|-------|
+| `?tag=x`         | ✅     |
+| `?tag=as&tag=ab`| ✅     |
+| *(no tag)*       | ❌     |
+
+---
+
+### 2. Exact value match
+
+```yaml
+tag: "as"
+```
+
+Matches if **at least one** of the repeated parameter values equals `"as"`.
+
+| Request           | Match |
+|-------------------|-------|
+| `?tag=as`         | ✅     |
+| `?tag=as&tag=b`   | ✅     |
+| `?tag=b`          | ❌     |
+
+---
+
+### 3. `any` — at least one value must match
+
+```yaml
+tag:
+  any: ["as", "ab"]
+```
+
+Matches if **at least one** of the listed values is present.
+
+| Request     | Match |
+|-------------|-------|
+| `?tag=ab`   | ✅     |
+| `?tag=as`   | ✅     |
+| `?tag=sc80` | ❌     |
+
+---
+
+### 4. `all` — all values must be present
+
+```yaml
+tag:
+  all: ["as", "ab"]
+```
+
+Matches only if **all required values** are present (order does not matter).
+
+| Request           | Match |
+|-------------------|-------|
+| `?tag=as&tag=ab` | ✅     |
+| `?tag=as`        | ❌     |
+| `?tag=ab`        | ❌     |
+
+---
+
+### Matching priority
+
+When multiple endpoints could potentially match a request, Mockavior applies the following **priority order** (from highest to lowest):
+
+1. `all`
+2. `any`
+3. exact value match (`tag: "as"`)
+4. wildcard (`tag: "*"`)
+
+The **first matching endpoint by priority wins**.
+
+---
+
+### Fallback behavior (Variant A — default)
+
+If a query parameter is present, **at least one endpoint must match** .
+
+This means:
+- If all, any, or exact match fail
+- but the parameter exists in the request
+- then the wildcard ("*"), if defined, will be used as a fallback
+  Example
+
+Given the following endpoints:
+```
+- when:
+    query:
+      tag:
+        all: ["as", "ab"]
+- when:
+    query:
+      tag:
+        any: ["as", "ab"]
+- when:
+    query:
+      tag: "as"
+- when:
+    query:
+      tag: "*"
+
+```
+
+| Request          | Matched rule |
+| ---------------- | ------------ |
+| `?tag=as&tag=ab` | `all`        |
+| `?tag=ab`        | `any`        |
+| `?tag=as`        | `equals`     |
+| `?tag=sc80`      | `*`          |
+| *(no tag)*       | ❌ 404        |
+
+
+
+### Strict behavior (without wildcard)
+
+If **no wildcard endpoint is defined**, and no rule matches:
+
+- the request results in **404 NOT FOUND**
+- this enables **strict contracts**
+
+This is useful for isolated testing of `any` / `all` semantics.
+
+---
+
+### Design rationale
+
+This design ensures:
+
+- presence of a parameter is never silently ignored
+- routing is predictable and explainable
+- fallback behavior is explicit and contract-driven
+- strict matching remains possible when required
+
+
 ### Headers
 
 ```yaml
