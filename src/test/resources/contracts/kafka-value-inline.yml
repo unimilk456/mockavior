@@ -1,0 +1,10 @@
+version: 1
+
+kafka:
+  scenarios:
+    - id: inline
+      messages:
+        - topic: test.topic
+          key: k1
+          value:
+            source: inline

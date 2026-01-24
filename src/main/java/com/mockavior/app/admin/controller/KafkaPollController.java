@@ -1,7 +1,11 @@
 package com.mockavior.app.admin.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mockavior.app.admin.dto.kafka.KafkaDecodeMode;
 import com.mockavior.app.admin.dto.kafka.KafkaMessageDTO;
 import com.mockavior.app.admin.dto.kafka.KafkaPollPeekResponse;
+import com.mockavior.app.admin.dto.kafka.KafkaValueDTO;
+import com.mockavior.contract.payload.ResolvedBody;
 import com.mockavior.kafka.model.KafkaMessage;
 import com.mockavior.kafka.runtime.InMemoryKafkaStore;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -11,6 +15,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -28,23 +34,27 @@ public final class KafkaPollController {
     @NonNull
     private final InMemoryKafkaStore store;
 
+    private final ObjectMapper objectMapper;
+
     /**
      * Peek messages (non-destructive).
      */
     @GetMapping("/{topic}")
-    public ResponseEntity<KafkaPollPeekResponse> peek(@PathVariable String topic) {
-        log.debug("ADMIN → Kafka peek requested: topic={}", topic);
+    public ResponseEntity<KafkaPollPeekResponse> peek(
+            @PathVariable String topic,
+            @RequestParam(name = "decode", required = false) String decode
+    ) {
+        KafkaDecodeMode mode = KafkaDecodeMode.from(decode);
+
+        log.debug("ADMIN → Kafka peek requested: topic={}, decode={}", topic, mode.wireValue());
 
         List<KafkaMessage> runtimeMessages = store.peek(topic);
+
         List<KafkaMessageDTO> messages = runtimeMessages.stream()
-                .map(this::toDto)
+                .map(m -> toDto(m, mode))
                 .toList();
 
-        log.debug(
-                "ADMIN ← Kafka peek result: topic={}, count={}",
-                topic,
-                messages.size()
-        );
+        log.debug("ADMIN ← Kafka peek result: topic={}, count={}, decode={}", topic, messages.size(), mode.wireValue());
 
         return ResponseEntity.ok(
                 new KafkaPollPeekResponse(
@@ -59,20 +69,24 @@ public final class KafkaPollController {
      * Take first message (destructive).
      */
     @PostMapping("/{topic}/take")
-    public ResponseEntity<KafkaMessageDTO> take(@PathVariable String topic) {
-        log.debug("ADMIN → Kafka take requested: topic={}", topic);
+    public ResponseEntity<KafkaMessageDTO> take(
+            @PathVariable String topic,
+            @RequestParam(name = "decode", required = false) String decode
+    ) {
+        KafkaDecodeMode mode = KafkaDecodeMode.from(decode);
+        log.debug("ADMIN → Kafka take requested: topic={}, decode={}", topic, mode.wireValue());
 
         Optional<KafkaMessage> message = store.take(topic);
 
         if (message.isPresent()) {
-            KafkaMessageDTO dto = toDto(message.get());
+            KafkaMessageDTO dto = toDto(message.get(), mode);
 
-            log.debug("ADMIN ← Kafka take success: topic={}, key={}", dto.topic(), dto.key());
+            log.debug("ADMIN ← Kafka take success: topic={}, key={}, decode={}", dto.topic(), dto.key(), mode.wireValue());
 
             return ResponseEntity.ok(dto);
         }
 
-        log.debug("ADMIN ← Kafka take empty: topic={}", topic);
+        log.debug("ADMIN ← Kafka take empty: topic={}, decode={}", topic, mode.wireValue());
 
         return ResponseEntity.noContent().build();
 
@@ -92,11 +106,42 @@ public final class KafkaPollController {
         return ResponseEntity.ok().build();
     }
 
-    private KafkaMessageDTO toDto(KafkaMessage message) {
+    private KafkaMessageDTO toDto(KafkaMessage message, KafkaDecodeMode decodeMode) {
+
+        ResolvedBody body = message.value();
+        byte[] bytes = body.bytes();
+
+        String rawBase64 = Base64.getEncoder().encodeToString(bytes);
+
+        Object decoded = null;
+
+        switch (decodeMode) {
+            case TEXT -> decoded = new String(bytes, StandardCharsets.UTF_8);
+
+            case JSON -> {
+                try {
+                    decoded = objectMapper.readTree(bytes);
+                } catch (Exception ex) {
+                    // intentionally swallow; keep decoded = null
+                    log.debug("Kafka message JSON decode failed: topic={}, key={}, bytes={}", message.topic(), message.key(), bytes.length);
+                }
+            }
+
+            case NONE -> {
+                // leave decoded null
+            }
+        }
+
         return new KafkaMessageDTO(
                 message.topic(),
                 message.key(),
-                message.value()
+                new KafkaValueDTO(
+                        rawBase64,
+                        decoded,
+                        decodeMode.wireValue(),
+                        body.source().name().toLowerCase()
+                )
         );
     }
+
 }

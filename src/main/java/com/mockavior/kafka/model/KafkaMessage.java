@@ -1,6 +1,7 @@
 package com.mockavior.kafka.model;
 
 import com.mockavior.behavior.delay.DelaySpec;
+import com.mockavior.contract.payload.ResolvedBody;
 
 import java.util.Objects;
 
@@ -11,7 +12,7 @@ import java.util.Objects;
 public record KafkaMessage(
         String topic,
         String key,
-        Object value,
+        ResolvedBody value,
         int repeat,
         DelaySpec delay
 ) {
@@ -19,6 +20,7 @@ public record KafkaMessage(
     public KafkaMessage {
         Objects.requireNonNull(topic, "topic must not be null");
         Objects.requireNonNull(delay, "delay must not be null");
+        Objects.requireNonNull(value, "value must not be null");
 
         if (topic.isBlank()) {
             throw new IllegalArgumentException("topic must not be blank");

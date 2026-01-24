@@ -37,7 +37,7 @@ public record FileBodySource(
             log.info("Resolving body from file: {}", resolvedPath);
 
             byte[] bytes = Files.readAllBytes(resolvedPath);
-            return new ResolvedBody(bytes);
+            return new ResolvedBody(bytes, BodySourceType.FILE);
 
         } catch (IOException ex) {
             throw new IllegalStateException(

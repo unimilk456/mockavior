@@ -6,10 +6,12 @@ import com.mockavior.app.admin.service.ContractValidationService;
 import com.mockavior.contract.compiler.ContractCompiler;
 import com.mockavior.contract.parse.ContractParser;
 import com.mockavior.contract.parse.YamlContractParser;
+import com.mockavior.contract.payload.BodyResolver;
 import com.mockavior.contract.source.ContractSource;
 import com.mockavior.contract.source.YamlFileContractSource;
 import com.mockavior.core.engine.BehaviorEngine;
 import com.mockavior.kafka.compiler.KafkaScenarioCompiler;
+import com.mockavior.kafka.runtime.ScenarioExecutionRegistry;
 import com.mockavior.reload.ReloadService;
 import com.mockavior.reload.watch.ContractFileWatcher;
 import com.mockavior.runtime.RequestProcessor;
@@ -73,8 +75,29 @@ public class RuntimeConfig {
     }
 
     @Bean
+    public BodyResolver bodyResolver(
+            ObjectMapper objectMapper,
+            YamlFileContractSource contractSource
+    ) {
+        Path workspaceRoot = contractSource.workspaceRoot();
+        log.info("Initializing BodyResolver with workspaceRoot={}", workspaceRoot);
+        return new BodyResolver(objectMapper, workspaceRoot);
+    }
+
+    @Bean
+    public KafkaScenarioCompiler kafkaScenarioCompiler(BodyResolver bodyResolver) {
+        log.info("Initializing KafkaScenarioCompiler");
+        return new KafkaScenarioCompiler(bodyResolver);
+    }
+
+    @Bean
     public ContractParser contractParser() {
         return new YamlContractParser();
+    }
+
+    @Bean
+    public ScenarioExecutionRegistry scenarioExecutionRegistry() {
+        return new ScenarioExecutionRegistry();
     }
 
     @Bean

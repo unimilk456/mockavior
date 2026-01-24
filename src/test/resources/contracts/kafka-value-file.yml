@@ -1,0 +1,9 @@
+version: 1
+
+kafka:
+  scenarios:
+    - id: file
+      messages:
+        - topic: test.topic
+          key: k1
+          valueFile: values/value.json

@@ -4,7 +4,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Objects;
 
-public record ResolvedBody(byte[] bytes) {
+public record ResolvedBody(
+        byte[] bytes,
+        BodySourceType source
+) {
 
     public ResolvedBody {
         Objects.requireNonNull(bytes, "bytes must not be null");
@@ -19,7 +22,7 @@ public record ResolvedBody(byte[] bytes) {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof ResolvedBody(byte[] otherBytes))) {
+        if (!(o instanceof ResolvedBody(byte[] otherBytes, BodySourceType ignored))) {
             return false;
         }
         return Arrays.equals(this.bytes, otherBytes);

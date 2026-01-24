@@ -16,6 +16,6 @@ public record KafkaMessageDTO(
         String key,
 
         @Schema(description = "Message payload")
-        Object value
+        KafkaValueDTO value
 ) {
 }

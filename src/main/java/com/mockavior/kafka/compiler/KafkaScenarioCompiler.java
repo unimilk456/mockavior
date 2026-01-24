@@ -1,5 +1,7 @@
 package com.mockavior.kafka.compiler;
 
+import com.mockavior.contract.payload.BodyResolver;
+import com.mockavior.contract.payload.ResolvedBody;
 import com.mockavior.kafka.model.KafkaMessage;
 import com.mockavior.kafka.model.KafkaRecord;
 import com.mockavior.kafka.model.KafkaScenario;
@@ -8,7 +10,6 @@ import com.mockavior.kafka.raw.RawKafkaScenario;
 import com.mockavior.kafka.raw.RawKafkaSection;
 import lombok.extern.slf4j.Slf4j;
 
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +21,12 @@ import java.util.Objects;
  */
 @Slf4j
 public final class KafkaScenarioCompiler {
+
+    private final BodyResolver bodyResolver;
+
+    public KafkaScenarioCompiler(BodyResolver bodyResolver) {
+        this.bodyResolver = Objects.requireNonNull(bodyResolver);
+    }
 
     public KafkaScenario compile(RawKafkaScenario raw) {
         Objects.requireNonNull(raw, "raw kafkaScenario must not be null");
@@ -72,10 +79,16 @@ public final class KafkaScenarioCompiler {
 
         int repeat = raw.repeat != null ? raw.repeat : 1;
 
+        ResolvedBody resolvedValue =
+                bodyResolver.resolve(
+                        raw.getValue(),
+                        raw.getValueFile()
+                );
+
         KafkaMessage message = new KafkaMessage(
                 raw.getTopic(),
                 raw.getKey(),
-                raw.getValue(),
+                resolvedValue,
                 repeat,
                 raw.delay
         );

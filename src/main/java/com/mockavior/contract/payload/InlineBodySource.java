@@ -16,19 +16,20 @@ public record InlineBodySource(
         try {
             if (body == null) {
                 log.debug("Inline body is null, resolving to empty payload");
-                return new ResolvedBody(new byte[0]);
+                return new ResolvedBody(new byte[0], BodySourceType.INLINE);
             }
 
             if (body instanceof String string) {
                 log.debug("Resolving inline body from String");
-                return new ResolvedBody(string.getBytes(StandardCharsets.UTF_8));
+                return new ResolvedBody(string.getBytes(StandardCharsets.UTF_8),
+                        BodySourceType.INLINE);
             }
 
             log.debug("Resolving inline body via ObjectMapper (type={})",
                     body.getClass().getName());
 
             byte[] bytes = objectMapper.writeValueAsBytes(body);
-            return new ResolvedBody(bytes);
+            return new ResolvedBody(bytes, BodySourceType.INLINE);
 
         } catch (Exception ex) {
             throw new IllegalStateException("Failed to resolve inline body", ex);
