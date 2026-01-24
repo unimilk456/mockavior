@@ -71,16 +71,13 @@ public final class KafkaScenarioCompiler {
         }
 
         int repeat = raw.repeat != null ? raw.repeat : 1;
-        Duration delay = raw.delayMs != null
-                ? Duration.ofMillis(raw.delayMs)
-                : Duration.ZERO;
 
         KafkaMessage message = new KafkaMessage(
                 raw.getTopic(),
                 raw.getKey(),
                 raw.getValue(),
                 repeat,
-                delay
+                raw.delay
         );
 
         return new KafkaRecord(raw.topic, message);

@@ -1,0 +1,12 @@
+kafka:
+  scenarios:
+    - id: delayed
+      messages:
+        - topic: delayed.topic
+          key: "k1"
+          value: { msg: "both" }
+          delay:
+            fixed: 1000
+            random:
+              min: 300
+              max: 800

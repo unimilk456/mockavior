@@ -3,6 +3,7 @@ package com.mockavior.contract.model;
 import com.mockavior.kafka.raw.RawKafkaSection;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -54,33 +55,50 @@ public final class RawContract {
         Objects.requireNonNull(data, "data must not be null");
 
         try {
+            int version = ((Number) data.getOrDefault("version", 1)).intValue();
+
+            List<RawEndpoint> endpoints = Collections.emptyList();
 
             Object endpointsObj = data.get("endpoints");
-            if (!(endpointsObj instanceof List<?>)) {
-                throw new IllegalArgumentException("Missing or invalid 'endpoints' section");
+            if (endpointsObj != null) {
+                if (!(endpointsObj instanceof List<?> list)) {
+                    throw new IllegalArgumentException("'endpoints' must be a list");
+                }
+
+                endpoints =
+                        list.stream()
+                                .map(e -> RawEndpoint.fromMap((Map<String, Object>) e))
+                                .toList();
             }
 
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> endpointMaps =
-                    (List<Map<String, Object>>) endpointsObj;
-
-            List<RawEndpoint> endpoints = endpointMaps.stream()
-                    .map(RawEndpoint::fromMap)
-                    .toList();
-
+            // ---------- settings (optional) ----------
             Settings settings = null;
             Object settingsObj = data.get("settings");
             if (settingsObj instanceof Map<?, ?>) {
                 settings = Settings.fromMap((Map<String, Object>) settingsObj);
             }
 
-            int version = ((Number) data.getOrDefault("version", 1)).intValue();
-
+            // ---------- meta (optional) ----------
             Meta meta = null;
             Object metaObj = data.get("meta");
             if (metaObj instanceof Map<?, ?>) {
                 meta = Meta.fromMap((Map<String, Object>) metaObj);
             }
+
+            // ---------- kafka (optional) ----------
+            RawKafkaSection kafka = null;
+            Object kafkaObj = data.get("kafka");
+            if (kafkaObj instanceof Map<?, ?>) {
+                kafka = RawKafkaSection.fromMap((Map<String, Object>) kafkaObj);
+            }
+
+            // ---------- validation ----------
+            if (endpoints.isEmpty() && kafka == null) {
+                throw new IllegalArgumentException(
+                        "Contract must contain at least one of: 'endpoints' or 'kafka'"
+                );
+            }
+
             log.info(
                     "Raw contract parsed: version={}, endpoints={}",
                     version,
@@ -96,12 +114,6 @@ public final class RawContract {
                                 e.request().path()
                         )
                 );
-            }
-
-            RawKafkaSection kafka = null;
-            Object kafkaObj = data.get("kafka");
-            if (kafkaObj instanceof Map<?, ?>) {
-                kafka = RawKafkaSection.fromMap((Map<String, Object>) kafkaObj);
             }
 
             return new RawContract(

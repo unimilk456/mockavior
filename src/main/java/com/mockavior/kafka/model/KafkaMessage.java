@@ -1,6 +1,7 @@
 package com.mockavior.kafka.model;
 
-import java.time.Duration;
+import com.mockavior.behavior.delay.DelaySpec;
+
 import java.util.Objects;
 
 /**
@@ -12,7 +13,7 @@ public record KafkaMessage(
         String key,
         Object value,
         int repeat,
-        Duration delay
+        DelaySpec delay
 ) {
 
     public KafkaMessage {
@@ -25,9 +26,6 @@ public record KafkaMessage(
 
         if (repeat <= 0) {
             throw new IllegalArgumentException("message.repeat must be >= 1");
-        }
-        if (delay.isNegative()) {
-            throw new IllegalArgumentException("message.delay must be >= 0");
         }
     }
 }

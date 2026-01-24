@@ -88,10 +88,7 @@ public final class ScenarioExecutionRunner {
             return;
         }
 
-        Duration delay =
-                nextRecord.message().delay() == null
-                        ? Duration.ZERO
-                        : nextRecord.message().delay();
+        Duration delay = nextRecord.message().delay().resolve();
 
         TaskHandle handle = scheduler.scheduleTask(() -> {
             if (execution.state() != ExecutionState.RUNNING) {

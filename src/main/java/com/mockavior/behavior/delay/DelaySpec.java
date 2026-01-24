@@ -1,7 +1,6 @@
 package com.mockavior.behavior.delay;
 
 import java.time.Duration;
-import java.util.Optional;
 
 public final class DelaySpec {
 

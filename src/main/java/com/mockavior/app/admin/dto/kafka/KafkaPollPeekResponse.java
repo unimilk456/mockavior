@@ -1,6 +1,5 @@
 package com.mockavior.app.admin.dto.kafka;
 
-import com.mockavior.kafka.model.KafkaMessage;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
@@ -12,7 +11,7 @@ import java.util.List;
       "topic": "user.created",
       "count": 3,
       "messages": [
-        { "key": "1", "value": "{...}", "timestamp": 1710000000 }
+        { "key": "1", "value": "{...}", "topic": "user.created" }
       ]
     }
     """
@@ -26,5 +25,5 @@ public record KafkaPollPeekResponse(
         int count,
 
         @Schema(description = "Messages currently stored in topic")
-        List<KafkaMessage> messages
+        List<KafkaMessageDTO> messages
 ) {}

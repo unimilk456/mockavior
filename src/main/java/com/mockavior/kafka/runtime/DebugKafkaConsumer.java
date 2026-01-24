@@ -7,12 +7,14 @@ import lombok.extern.slf4j.Slf4j;
 
 import jakarta.annotation.PostConstruct;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
 import java.util.Set;
 
+@Profile("!test")
 @Slf4j
 @Component
 @RequiredArgsConstructor

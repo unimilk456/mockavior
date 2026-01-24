@@ -1,0 +1,8 @@
+kafka:
+  scenarios:
+    - id: delayed
+      messages:
+        - topic: delayed.topic
+          key: "k1"
+          value: { msg: "fixed" }
+          delay: 1000

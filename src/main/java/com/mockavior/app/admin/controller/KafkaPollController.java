@@ -1,5 +1,6 @@
 package com.mockavior.app.admin.controller;
 
+import com.mockavior.app.admin.dto.kafka.KafkaMessageDTO;
 import com.mockavior.app.admin.dto.kafka.KafkaPollPeekResponse;
 import com.mockavior.kafka.model.KafkaMessage;
 import com.mockavior.kafka.runtime.InMemoryKafkaStore;
@@ -34,7 +35,10 @@ public final class KafkaPollController {
     public ResponseEntity<KafkaPollPeekResponse> peek(@PathVariable String topic) {
         log.debug("ADMIN → Kafka peek requested: topic={}", topic);
 
-        List<KafkaMessage> messages = store.peek(topic);
+        List<KafkaMessage> runtimeMessages = store.peek(topic);
+        List<KafkaMessageDTO> messages = runtimeMessages.stream()
+                .map(this::toDto)
+                .toList();
 
         log.debug(
                 "ADMIN ← Kafka peek result: topic={}, count={}",
@@ -55,15 +59,17 @@ public final class KafkaPollController {
      * Take first message (destructive).
      */
     @PostMapping("/{topic}/take")
-    public ResponseEntity<KafkaMessage> take(@PathVariable String topic) {
+    public ResponseEntity<KafkaMessageDTO> take(@PathVariable String topic) {
         log.debug("ADMIN → Kafka take requested: topic={}", topic);
 
         Optional<KafkaMessage> message = store.take(topic);
 
         if (message.isPresent()) {
-            log.debug("ADMIN ← Kafka take success: topic={}, key={}", topic, message.get().key());
+            KafkaMessageDTO dto = toDto(message.get());
 
-            return ResponseEntity.ok(message.get());
+            log.debug("ADMIN ← Kafka take success: topic={}, key={}", dto.topic(), dto.key());
+
+            return ResponseEntity.ok(dto);
         }
 
         log.debug("ADMIN ← Kafka take empty: topic={}", topic);
@@ -84,5 +90,13 @@ public final class KafkaPollController {
         log.info("ADMIN ← Kafka topic cleared: topic={}", topic);
 
         return ResponseEntity.ok().build();
+    }
+
+    private KafkaMessageDTO toDto(KafkaMessage message) {
+        return new KafkaMessageDTO(
+                message.topic(),
+                message.key(),
+                message.value()
+        );
     }
 }

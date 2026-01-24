@@ -1,25 +1,9 @@
-settings:
-  mode: PASSTHROUGH
-  proxy:
-    baseUrl: https://httpbin.org
-
-endpoints:
-  - id: health-check
-    priority: 10
-    request:
-      protocol: http
-      method: GET
-      path: /health
-    response:
-      type: mock
-      status: 200
-      body: "OK!!!"
-
+version: 1
 
 kafka:
   scenarios:
     - id: user-events
-      repeat: 5
+      repeat: 4
       messages:
         - topic: user.created
           key: "user-1"
@@ -27,10 +11,17 @@ kafka:
             id: 1
             name: Alice
           repeat: 1
+          delay:
+            fixed: 2000
+            random:
+              min: 1000
+              max: 5000
 
-        - topic: user.updated
-          key: "user-1"
-          value:
-            id: 1
-            name: Alice Smith
-          repeat: 2
+#        - topic: user.updated
+#          key: "user-1"
+#          value:
+#            id: 1
+#            name: Alice Smith
+#          repeat: 2
+
+endpoints: []
