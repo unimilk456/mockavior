@@ -1,3 +1,49 @@
+## 🚀 Mockavior — what it is and why you need it
+
+**Mockavior is a contract-driven mock service for HTTP and Kafka**, designed for teams that need **deterministic and honest integration testing** without real infrastructure.
+
+---
+
+## 🔑 Key features
+
+### 📄 One YAML — the whole system
+- A single file (`mockapi.yml`) defines **HTTP + Kafka**
+- The contract is the **single source of truth**
+- No SDKs, no mocks in tests, no custom code
+
+---
+
+### 🔁 Hot reload without breaking requests
+- Contract updates **on the fly**
+- In-flight requests are never broken
+- Atomic snapshot swap
+
+---
+
+### 🌐 HTTP mocking that behaves like a real service
+- Path parameters, conditions (`when`), priorities
+- Template substitution
+- **Inline body or body loaded from file**
+- **Fixed and random response delays**
+- Error responses and controlled proxying
+
+---
+
+### 🧵 Kafka without Kafka
+- Kafka is a **side-effect of the contract**
+- Asynchronous scenarios with delay / repeat
+- Payload inline or loaded from file
+- **Kafka = bytes. Always.**
+- No real brokers required
+
+---
+
+### 📬 Admin Polling API
+- peek / take / clear
+- Decode modes: `none | text | json`
+- Raw bytes + decoded representation
+- Decoding is **presentation only**
+
 # Mockavior — Contract-driven Mock Platform
 
 Mockavior is a **contract-driven HTTP API mocking platform** designed for:
