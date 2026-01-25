@@ -13,3 +13,6 @@ contract management, or runtime usage.
 - Passthrough mode
 - Admin API usage
 - Contract update lifecycle
+- external file bodies
+- random delay
+- query repeated params
