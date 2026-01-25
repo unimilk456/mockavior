@@ -1,0 +1,38 @@
+{
+  "uid": "mockavior-jvm-gc",
+  "title": "Mockavior · JVM & GC",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "tags": ["mockavior", "jvm"],
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Heap usage",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 6 },
+      "targets": [
+        { "expr": "jvm_memory_used_bytes", "legendFormat": "used" },
+        { "expr": "jvm_memory_committed_bytes", "legendFormat": "committed" },
+        { "expr": "jvm_memory_max_bytes", "legendFormat": "max" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "GC pauses",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 6 },
+      "targets": [
+        { "expr": "jvm_gc_pause_seconds_max", "legendFormat": "max" },
+        { "expr": "jvm_gc_pause_seconds_sum", "legendFormat": "sum" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "GC overhead",
+      "gridPos": { "x": 0, "y": 6, "w": 24, "h": 6 },
+      "targets": [
+        { "expr": "jvm_gc_overhead_percent", "legendFormat": "overhead" }
+      ]
+    }
+  ]
+}

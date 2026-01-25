@@ -105,23 +105,148 @@ Key principles:
 
 ## 🚀 Quick Start
 
-### 1️⃣ Starting the Service
+### Running Mockavior
 
-#### Option A — Locally (without Docker)
+This document describes the available ways to run **Mockavior**, from the simplest zero-effort setup to more advanced and customizable options.
 
-`java -jar mockavior.jar \`
-`--mockavior.contract.path=/path/to/mockapi.yml`
+The options are ordered from **recommended / easiest** to **most lightweight**.
 
-#### Option B — Docker
+---
 
-`docker pull unisoft123/mockavior:latest`
+### 1. Zero‑effort run (Prebuilt Docker Compose) ⭐ Recommended
 
-`docker run -p 8080:8080 -v /path/to/mockapi.yml:/app/config/mockapi.yml unisoft123/mockavior`
+This is the **recommended way** to get started.
 
+The system is started using **prebuilt Docker images** from Docker Hub and includes:
+- Mockavior
+- Prometheus
+- Grafana (with preconfigured dashboards)
+
+No build tools, no Gradle, and no repository cloning are required.
+
+#### Requirements
+- Docker
+- Docker Compose
+
+#### Start
+
+```bash
+docker compose -f docker-compose.prebuilt.yml up
+```
+
+#### After startup
+
+- Mockavior: http://localhost:8080
+- Grafana: http://localhost:3000
+    - login: `admin`
+    - password: `admin`
+- Prometheus: http://localhost:9090
+
+This mode is ideal for:
+- quick evaluation
+- demos
+- local testing with metrics
+- users who want everything working immediately
+
+---
+
+### 2. Source‑based run (for developers)
+
+This option is intended for users who want to:
+- inspect the source code
+- modify metrics or dashboards
+- customize configuration
+- contribute to the project
+
+The system is built from **local sources**.
+
+#### Requirements
+- Git
+- Docker
+- Docker Compose
+
+#### Start
+
+```bash
+git clone <repository-url>
+cd mockavior
+docker compose up
+```
+
+In this mode:
+- Mockavior is built from sources
+- dashboards and metrics can be freely modified
+- Grafana provisioning is enabled for development
+
+---
+
+### 3. Standalone JAR (без Grafana и Prometheus)
+
+This option runs **only the Mockavior application**.
+
+Metrics are still exposed, but Prometheus and Grafana are not started automatically.
+
+#### Requirements
+- Java 21+
+
+#### Start
+
+```bash
+java -jar mockavior.jar
+```
+
+#### Metrics endpoint
+
+```
+GET /actuator/prometheus
+```
+
+This mode is useful for:
+- CI environments
+- embedding into existing systems
+- minimal runtime setups
+
+---
+
+### 4. Single Docker image (Mockavior only)
+
+This option runs Mockavior as a **single Docker container**, without Grafana and Prometheus.
+
+#### Requirements
+- Docker
+
+#### Start
+
+```bash
+docker run -p 8080:8080   -v $(pwd)/config:/app/config   unisoft123/mockavior:latest
+```
+
+Metrics are still available at:
+
+```
+/actuator/prometheus
+```
+
+This mode is useful when:
+- Prometheus/Grafana are already running elsewhere
+- Mockavior is deployed as part of a larger system
+
+---
+
+### Choosing the right option
+
+| Scenario | Recommended option |
+|-------|------------------|
+| Quick demo / first run | Prebuilt Docker Compose |
+| Development / customization | Source‑based Docker Compose |
+| Minimal runtime | Standalone JAR |
+| Existing observability stack | Single Docker image |
+
+
+## 📄 Contract mockapi.yml
 Mockavior requires a contract file at startup.  
 The container will not start without a mounted contract.
 
-## 📄 Contract mockapi.yml
 
 ### Minimal Example
 
@@ -518,6 +643,162 @@ Response:
   "snapshotVersion": 12
 }
 ```
+
+## Metrics & Observability
+
+This project exposes a rich set of metrics via **Prometheus** and provides ready-to-use **Grafana dashboards** for observability.
+
+---
+
+### Overview
+
+The application exposes metrics at:
+
+```
+GET /actuator/prometheus
+```
+
+Prometheus scrapes this endpoint and Grafana visualizes the data using provisioned dashboards.
+
+Metrics are grouped into:
+- Application lifecycle
+- HTTP & routing
+- Snapshots
+- Executors & threads
+- JVM & GC
+- System & process
+
+---
+
+### Custom Application Metrics (`mockavior_*`)
+
+#### HTTP & Routing
+
+| Metric | Type | Description |
+|------|------|-------------|
+| `mockavior_http_requests_total` | counter | Total number of HTTP requests |
+| `mockavior_http_request_duration_seconds_*` | summary / gauge | End-to-end HTTP request duration |
+| `mockavior_routing_match_time_seconds_bucket` | histogram | Time spent matching routes |
+| `mockavior_routing_match_time_seconds_max` | gauge | Max routing match time |
+| `mockavior_routing_matched_total` | counter | Requests matched to a route |
+| `mockavior_routing_fallback_total` | counter | Requests routed to fallback |
+
+Latency percentiles are calculated in Prometheus using:
+
+```
+histogram_quantile(0.95,
+  sum by (le) (
+    increase(mockavior_routing_match_time_seconds_bucket[15m])
+  )
+)
+```
+
+---
+
+#### Snapshots
+
+| Metric | Type | Description |
+|------|------|-------------|
+| `mockavior_snapshot_active` | gauge | Currently active snapshot |
+| `mockavior_snapshot_in_flight` | gauge | Snapshots being processed |
+| `mockavior_snapshot_lifetime_seconds_*` | summary / gauge | Snapshot lifetime |
+| `mockavior_snapshot_retire_wait_seconds_*` | summary / gauge | Snapshot retire delay |
+
+---
+
+### Application Lifecycle
+
+| Metric | Type | Description |
+|------|------|-------------|
+| `application_started_time_seconds` | gauge | Time taken to start the application |
+| `application_ready_time_seconds` | gauge | Time until application is ready |
+| `process_uptime_seconds` | gauge | JVM uptime |
+| `process_start_time_seconds` | gauge | JVM start timestamp |
+
+`application_started_time_seconds` is used to detect restarts.
+
+---
+
+### Executors & Threads
+
+| Metric | Type | Description |
+|------|------|-------------|
+| `executor_active_threads` | gauge | Active executor threads |
+| `executor_queued_tasks` | gauge | Queued tasks |
+| `executor_queue_remaining_tasks` | gauge | Remaining queue capacity |
+| `executor_pool_size_threads` | gauge | Current pool size |
+| `executor_pool_max_threads` | gauge | Max pool size |
+
+---
+
+### JVM & Garbage Collection
+
+| Metric | Type | Description |
+|------|------|-------------|
+| `jvm_memory_used_bytes` | gauge | Used JVM memory |
+| `jvm_memory_committed_bytes` | gauge | Committed JVM memory |
+| `jvm_memory_max_bytes` | gauge | Max JVM memory |
+| `jvm_gc_pause_seconds_*` | summary / gauge | GC pause times |
+| `jvm_gc_overhead_percent` | gauge | GC CPU overhead |
+| `jvm_threads_live_threads` | gauge | Live JVM threads |
+
+---
+
+### System & Process Metrics
+
+| Metric | Type | Description |
+|------|------|-------------|
+| `process_cpu_usage` | gauge | JVM CPU usage |
+| `system_cpu_usage` | gauge | System CPU usage |
+| `system_load_average_1m` | gauge | 1-minute load average |
+| `disk_free_bytes` | gauge | Free disk space |
+| `disk_total_bytes` | gauge | Total disk space |
+
+---
+
+### Grafana Dashboards
+
+The following dashboards are provisioned automatically:
+
+1. **Mockavior · Overview**  
+   High-level health and latency overview
+
+2. **Mockavior · Routing & Latency**  
+   Routing histograms and percentiles
+
+3. **Mockavior · HTTP Runtime**  
+   Request rates and durations
+
+4. **Mockavior · Executors & Threads**  
+   Thread pools and queues
+
+5. **Mockavior · JVM & GC**  
+   Memory, GC, and JVM internals
+
+6. **Mockavior · Lifecycle & Stability**  
+   Startup, uptime, restarts
+
+Dashboards are provisioned via Grafana provisioning and stored in the repository.
+
+---
+
+### Notes
+
+- Histograms are queried using `increase()` for low-traffic / dev environments.
+- Dashboards are versioned and managed via provisioning.
+- Layout follows a 24-column grid system.
+
+---
+
+### Quick Verification
+
+```bash
+curl http://localhost:8080/actuator/prometheus | grep mockavior_
+```
+
+If metrics are returned and Prometheus target is **UP**, observability is correctly configured.
+
+
 
 ## 🛠 Admin API
 

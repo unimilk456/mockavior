@@ -1,0 +1,9 @@
+providers:
+  - name: "Mockavior dashboards"
+    orgId: 1
+    folder: "Mockavior"
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards

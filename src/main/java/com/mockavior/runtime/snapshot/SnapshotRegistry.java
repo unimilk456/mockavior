@@ -2,6 +2,7 @@ package com.mockavior.runtime.snapshot;
 
 import com.mockavior.behavior.Behavior;
 import com.mockavior.core.snapshot.ContractSnapshot;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Set;
@@ -17,12 +18,16 @@ public final class SnapshotRegistry {
     private final Set<SnapshotHandle> retired =
             ConcurrentHashMap.newKeySet();
 
+    private final MeterRegistry meterRegistry;
+
     public SnapshotRegistry(
             ContractSnapshot initialSnapshot,
-            Behavior fallbackBehavior
+            Behavior fallbackBehavior,
+            MeterRegistry meterRegistry
     ) {
+        this.meterRegistry = meterRegistry;
         SnapshotHandle handle =
-                new SnapshotHandle(initialSnapshot, fallbackBehavior);
+                new SnapshotHandle(initialSnapshot, fallbackBehavior, meterRegistry);
         handle.activate();
         active.set(handle);
 
@@ -42,7 +47,7 @@ public final class SnapshotRegistry {
     }
 
     public void activateNew(ContractSnapshot newSnapshot, Behavior fallbackBehavior) {
-        SnapshotHandle newHandle = new SnapshotHandle(newSnapshot, fallbackBehavior);
+        SnapshotHandle newHandle = new SnapshotHandle(newSnapshot, fallbackBehavior, meterRegistry);
         newHandle.activate();
 
         SnapshotHandle old = active.getAndSet(newHandle);

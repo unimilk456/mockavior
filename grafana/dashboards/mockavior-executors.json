@@ -1,0 +1,39 @@
+{
+  "uid": "mockavior-executors",
+  "title": "Mockavior · Executors & Threads",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "tags": ["mockavior", "executors"],
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Executor threads",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 6 },
+      "targets": [
+        { "expr": "executor_active_threads", "legendFormat": "active" },
+        { "expr": "executor_pool_size_threads", "legendFormat": "pool" },
+        { "expr": "executor_pool_max_threads", "legendFormat": "max" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Executor queue",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 6 },
+      "targets": [
+        { "expr": "executor_queued_tasks", "legendFormat": "queued" },
+        { "expr": "executor_queue_remaining_tasks", "legendFormat": "remaining" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "JVM threads",
+      "gridPos": { "x": 0, "y": 6, "w": 24, "h": 6 },
+      "targets": [
+        { "expr": "jvm_threads_live_threads", "legendFormat": "live" },
+        { "expr": "jvm_threads_daemon_threads", "legendFormat": "daemon" }
+      ]
+    }
+  ]
+}

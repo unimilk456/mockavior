@@ -1,0 +1,44 @@
+{
+  "uid": "mockavior-lifecycle",
+  "title": "Mockavior · Lifecycle & Stability",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-6h", "to": "now" },
+  "tags": ["mockavior", "lifecycle"],
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Application start time",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 6 },
+      "targets": [
+        {
+          "expr": "application_started_time_seconds",
+          "legendFormat": "started"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Process uptime",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 6 },
+      "targets": [
+        {
+          "expr": "process_uptime_seconds",
+          "legendFormat": "uptime"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Log events",
+      "gridPos": { "x": 0, "y": 6, "w": 24, "h": 6 },
+      "targets": [
+        {
+          "expr": "increase(logback_events_total[5m])",
+          "legendFormat": "logs"
+        }
+      ]
+    }
+  ]
+}

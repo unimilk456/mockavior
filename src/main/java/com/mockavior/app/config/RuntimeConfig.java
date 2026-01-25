@@ -17,6 +17,7 @@ import com.mockavior.reload.watch.ContractFileWatcher;
 import com.mockavior.runtime.RequestProcessor;
 import com.mockavior.runtime.proxy.HttpProxyClient;
 import com.mockavior.runtime.snapshot.SnapshotRegistry;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -69,9 +70,9 @@ public class RuntimeConfig {
     }
 
     @Bean
-    public HttpProxyClient httpProxyClient() {
+    public HttpProxyClient httpProxyClient(MeterRegistry meterRegistry) {
         log.info("Initializing HttpProxyClient");
-        return new HttpProxyClient();
+        return new HttpProxyClient(meterRegistry);
     }
 
     @Bean
@@ -122,7 +123,8 @@ public class RuntimeConfig {
     public SnapshotRegistry snapshotRegistry(
             ContractCompiler compiler,
             ContractParser parser,
-            ContractSource source
+            ContractSource source,
+            MeterRegistry meterRegistry
     ) throws Exception {
 
         log.info("Loading initial contract snapshot");
@@ -139,7 +141,8 @@ public class RuntimeConfig {
 
         return new SnapshotRegistry(
                 compiled.snapshot(),
-                compiled.fallbackBehavior()
+                compiled.fallbackBehavior(),
+                meterRegistry
         );
     }
 
@@ -157,10 +160,11 @@ public class RuntimeConfig {
     @Bean
     public RequestProcessor requestProcessor(
             SnapshotRegistry registry,
-            BehaviorEngine engine
+            BehaviorEngine engine,
+            MeterRegistry meterRegistry
     ) {
         log.info("Initializing RequestProcessor");
-        return new RequestProcessor(registry, engine);
+        return new RequestProcessor(registry, engine, meterRegistry);
     }
 
     @Bean
