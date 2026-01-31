@@ -127,7 +127,7 @@ No build tools, no Gradle, and no repository cloning are required.
 #### Requirements
 - Docker
 - Docker Compose
-
+- The current directory must contain a directory with the contract file сonfig/mockapi.yml
 #### Start
 
 ```bash

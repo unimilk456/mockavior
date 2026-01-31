@@ -1,9 +1,12 @@
+apiVersion: 1
+
 providers:
-  - name: "Mockavior dashboards"
+  - name: mockavior
     orgId: 1
-    folder: "Mockavior"
+    folder: Mockavior
     type: file
     disableDeletion: false
     editable: true
+    allowUiUpdates: true
     options:
       path: /var/lib/grafana/dashboards

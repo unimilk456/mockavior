@@ -3,7 +3,7 @@ version: 1
 kafka:
   scenarios:
     - id: user-events
-      repeat: 1
+      repeat: 1000000
       messages:
         - topic: user.created
           key: "user-1"

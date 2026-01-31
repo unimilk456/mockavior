@@ -120,7 +120,8 @@ HTTP response
 - Docker Compose
 
 #### Запуск
-
+**Требование:** 
+В текущей директории должна быть директория с файлом контракта сonfig/mockapi.yml 
 ```bash
 docker compose -f docker-compose.prebuilt.yml up
 ```
