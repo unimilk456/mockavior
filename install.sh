@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE_URL="https://raw.githubusercontent.com/<ORG>/mockavior/main"
+BASE_URL="https://raw.githubusercontent.com/unimilk456/mockavior/main"
 
 echo "⬇️  Downloading Mockavior bootstrap"
 
