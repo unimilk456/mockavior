@@ -1,14 +1,25 @@
 package com.mockavior.runtime.proxy;
 
-import com.mockavior.behavior.BehaviorResult;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public final class ProxyResponseWriter {
+
+    private static final Set<String> HOP_BY_HOP_HEADERS = Set.of(
+            "connection",
+            "keep-alive",
+            "proxy-authenticate",
+            "proxy-authorization",
+            "te",
+            "trailer",
+            "transfer-encoding",
+            "upgrade"
+    );
 
     private ProxyResponseWriter() {
     }
@@ -25,8 +36,13 @@ public final class ProxyResponseWriter {
 
             String headerName = entry.getKey();
 
-            if (!isValidHeaderName(headerName)) {
-                continue; // 🔴 КРИТИЧНО
+            boolean skip =
+                    headerName == null
+                            || !isValidHeaderName(headerName)
+                            || HOP_BY_HOP_HEADERS.contains(headerName.toLowerCase());
+
+            if (skip) {
+                continue;
             }
 
             for (String value : entry.getValue()) {
@@ -37,8 +53,11 @@ public final class ProxyResponseWriter {
         }
 
         byte[] body = proxyResponse.body();
-        if (body != null && body.length > 0) {
-            servletResponse.getOutputStream().write(body);
+        if (body != null) {
+            servletResponse.setContentLength(body.length);
+            if (body.length > 0) {
+                servletResponse.getOutputStream().write(body);
+            }
         }
     }
 

@@ -1,22 +1,17 @@
-version: 1
+  settings:
+    mode: PASSTHROUGH
+    proxy:
+      baseUrl:   http://esbwsint:80
 
-kafka:
-  scenarios:
-    - id: user-events
-      repeat: 1000000
-      messages:
-        - topic: user.created
-          key: "user-1"
-          value:
-            id: 1
-            name: Alice
-          repeat: 1
+  endpoints:
+    - id: health-check
+      priority: 10
+      request:
+        protocol: http
+        method: GET
+        path: /health
+      response:
+        type: mock
+        status: 200
+        body: "OK!"
 
-        - topic: user.updated
-          key: "user-1"
-          value:
-            id: 1
-            name: Alice Smith
-          repeat: 2
-
-endpoints: []
