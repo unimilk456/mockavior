@@ -131,8 +131,15 @@ No build tools, no Gradle, and no repository cloning are required.
 #### Start
 
 ```bash
-docker compose -f docker-compose.prebuilt.yml up
+curl -O https://github.com/unimilk456/mockavior/blob/main/mockavior-up.sh
+chmod +x mockavior-up.sh
+./mockavior-up.sh
 ```
+
+The script will:
+- create a minimal contract if missing
+- start Mockavior, Prometheus and Grafana
+- expose everything on localhost
 
 #### After startup
 
@@ -149,6 +156,14 @@ This mode is ideal for:
 - users who want everything working immediately
 
 ---
+
+
+### 1.1 Optional just one line to run 
+```
+curl -fsSL https://github.com/unimilk456/mockavior/blob/main/install.sh | bash
+```
+This script downloads and runs mockavior-up.sh.
+Review it before execution if you prefer.
 
 ### 2. Source‑based run (for developers)
 
