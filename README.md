@@ -160,7 +160,7 @@ This mode is ideal for:
 
 ### 1.1 Optional just one line to run 
 ```
-curl -fsSL https://github.com/unimilk456/mockavior/blob/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/unimilk456/mockavior/main/install.sh | bash
 ```
 This script downloads and runs mockavior-up.sh.
 Review it before execution if you prefer.

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-#./publish-image.sh 3.0.1
+#./publish-image.sh 3.0.2
 
 set -euo pipefail
 

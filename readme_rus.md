@@ -123,8 +123,15 @@ HTTP response
 **Требование:** 
 В текущей директории должна быть директория с файлом контракта сonfig/mockapi.yml 
 ```bash
-docker compose -f docker-compose.prebuilt.yml up
+curl -O https://github.com/unimilk456/mockavior/blob/main/mockavior-up.sh
+chmod +x mockavior-up.sh
+./mockavior-up.sh
 ```
+Скрипт выполнит следующие действия:
+- создаст минимальный контракт, если он отсутствует;
+- запустит Mockavior, Prometheus и Grafana;
+- предоставит доступ ко всему через localhost.
+
 
 #### После запуска
 
@@ -139,6 +146,14 @@ docker compose -f docker-compose.prebuilt.yml up
 - демо
 - локального тестирования с метриками
 - пользователей, которым нужно, чтобы всё заработало сразу
+
+
+### 1.1 Опциональный в одну команду
+```
+curl -fsSL https://raw.githubusercontent.com/unimilk456/mockavior/main/install.sh | bash
+```
+Этот скрипт загружает и запускает mockavior-up.sh.
+При желании, перед запуском можете ознакомится с ним.
 
 ---
 
