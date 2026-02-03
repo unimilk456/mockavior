@@ -60,7 +60,7 @@ fi
 if [ ! -f "$COMPOSE_FILE" ]; then
   echo "⬇️  Downloading docker-compose.prebuilt.yml"
   curl -fsSL \
-    https://raw.githubusercontent.com/<ORG>/mockavior/main/docker-compose.prebuilt.yml \
+    https://raw.githubusercontent.com/unimilk456/mockavior/main/docker-compose.prebuilt.yml \
     -o "$COMPOSE_FILE"
 fi
 
