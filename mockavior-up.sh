@@ -25,14 +25,14 @@ command -v docker-compose >/dev/null 2>&1 || {
 # --- config dir ---------------------------------------------------
 
 if [ ! -d "$CONFIG_DIR" ]; then
-  echo "📁 Creating config directory"
+  echo "📁 Creating config directory $CONFIG_DIR"
   mkdir -p "$CONFIG_DIR"
 fi
 
 # --- contract -----------------------------------------------------
 
 if [ ! -f "$CONTRACT_FILE" ]; then
-  echo "📄 Creating minimal mockapi.yml"
+  echo "📄 Contract not found, creating minimal mockapi.yml"
 
   cat > "$CONTRACT_FILE" <<EOF
 version: 1

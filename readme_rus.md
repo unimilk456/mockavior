@@ -153,7 +153,7 @@ chmod +x mockavior-up.sh
 curl -fsSL https://raw.githubusercontent.com/unimilk456/mockavior/main/install.sh | bash
 ```
 Этот скрипт загружает и запускает mockavior-up.sh.
-При желании, перед запуском можете ознакомится с ним.
+При желании, перед запуском можете ознакомиться с ним.
 
 ---
 
