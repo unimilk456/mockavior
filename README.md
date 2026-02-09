@@ -1126,3 +1126,7 @@ This avoids:
 - implicit serialization
 
 And makes Kafka contracts honest and portable.
+
+© 2026 Mikhail Davidovich
+This project is licensed under the Apache License 2.0.
+Original repository: https://github.com/unimilk456/mockavior
